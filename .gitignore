@@ -1,0 +1,7 @@
+pkg/
+*.gem
+*.sigstore.json
+Gemfile.lock
+.bundle/
+vendor/
+__pycache__/

@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# wkhtmltoimage, for IMGKit and the other libraries that look for it with Bundler or on the PATH:
+# it starts marqius-wkhtmltopdf, which this gem carries, as wkhtmltoimage.
+require_relative "../lib/marqius_wkhtmltopdf"
+
+begin
+  program = MarqiusWkhtmltopdf.program
+rescue MarqiusWkhtmltopdf::Error => e
+  abort e.message
+end
+exec program, "wkhtmltoimage", *ARGV

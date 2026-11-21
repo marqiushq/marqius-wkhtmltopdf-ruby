@@ -1,0 +1,2 @@
+# every file with LF line endings, Windows checkouts included (the tests read the README's blocks)
+* text=auto eol=lf

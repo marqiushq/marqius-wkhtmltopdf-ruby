@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# marqius-wkhtmltopdf under its own name (bundle exec marqius-wkhtmltopdf): licence, help, compare
+# and wkhtmltopdf's command line. Commercial software with a 30-day free trial.
+require_relative "../lib/marqius_wkhtmltopdf"
+
+begin
+  program = MarqiusWkhtmltopdf.program
+rescue MarqiusWkhtmltopdf::Error => e
+  abort e.message
+end
+exec [program, "marqius-wkhtmltopdf"], *ARGV # never through a shell, even with no arguments
