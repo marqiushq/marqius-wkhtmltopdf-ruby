@@ -13,8 +13,8 @@ Gem::Specification.new do |spec|
                  "for wicked_pdf and PDFKit (commercial, 30-day trial)"
   spec.description = "The maintained drop-in replacement for wkhtmltopdf, in place of the " \
                      "wkhtmltopdf-binary gem: wicked_pdf and PDFKit find it with no change. Each " \
-                     "platform's gem carries the program, so nothing is downloaded at install or " \
-                     "when your code runs."
+                     "platform's gem carries the program, so nothing else is downloaded, at install " \
+                     "or when your code runs."
   spec.homepage = "https://marqius.com/wkhtmltopdf/"
   spec.license = "LicenseRef-marqius-wkhtmltopdf"
   spec.metadata = {

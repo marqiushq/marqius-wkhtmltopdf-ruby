@@ -1,6 +1,6 @@
 # marqius-wkhtmltopdf for Ruby
 
-**marqius-wkhtmltopdf** is the maintained drop-in replacement for wkhtmltopdf. This gem puts it in your Ruby or Rails app in place of `wkhtmltopdf-binary`: keep wicked_pdf or PDFKit, your templates and your PDF calls. It runs on Linux (x86-64 and ARM64, glibc and musl, Heroku-24 and Debian 13 included), Apple silicon Macs and Windows (x64), and needs no X server, Qt or system libraries.
+**marqius-wkhtmltopdf** is the maintained drop-in replacement for wkhtmltopdf. This gem puts it in your Ruby or Rails app in place of `wkhtmltopdf-binary`: keep wicked_pdf or PDFKit, your templates and your PDF calls. It runs on Linux (x86-64 and ARM64, glibc and musl, including Heroku-24 and Debian 13), Apple silicon Macs and Windows (x64), and needs no X server, Qt or system libraries.
 
 ## Install
 
@@ -11,7 +11,7 @@ In your Gemfile, in place of `gem "wkhtmltopdf-binary"`:
 gem "marqius-wkhtmltopdf"
 ```
 
-Then run `bundle install`. Bundler installs the gem for your platform, which carries the program itself: nothing is downloaded at install or when your code runs, so it works in CI and on servers without internet access.
+Then run `bundle install`. Bundler installs the gem for your platform, which carries the program itself: nothing else is downloaded, at install or when your code runs, so it works in CI and, from `bundle cache`, on servers that cannot reach the internet.
 
 If you work on a Mac and deploy to Linux, add Linux to your `Gemfile.lock` once:
 
