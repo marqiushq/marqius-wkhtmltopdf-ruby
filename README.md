@@ -11,7 +11,7 @@ In your Gemfile, in place of `gem "wkhtmltopdf-binary"`:
 gem "marqius-wkhtmltopdf"
 ```
 
-Then run `bundle install`. Bundler installs the gem for your platform, which carries the program itself: nothing else is downloaded, at install or when your code runs, so it works in CI and, from `bundle cache`, on servers that cannot reach the internet.
+Then run `bundle install`. Bundler installs the gem for your platform, which carries the program itself: nothing else is downloaded, at install or when your code runs, so it works in CI and, from `bundle cache --all-platforms`, on servers that cannot reach the internet.
 
 If you work on a Mac and deploy to Linux, add Linux to your `Gemfile.lock` once:
 
