@@ -59,6 +59,17 @@ project() { # a new project: the library, then the README's Gemfile line, as pri
     retry sh -c "$line" >bundle.log 2>&1 || { cat bundle.log; fail "$line"; }
     if [ "${HEROKU:-no}" = yes ]; then
         lock
+        if [ -n "${GEMS:-}" ]; then
+            # Bundler takes a gem's checksum from RubyGems.org's index, which does not have these gems
+            # yet; give the lockfile what the index will give, the SHA-256 of each gem's file, as a
+            # lockfile made against RubyGems.org holds (a frozen install refuses an empty one)
+            ruby -rdigest -e 'lock = File.read("Gemfile.lock")
+                lock.gsub!(/^  marqius-wkhtmltopdf \(([^)]+)\)$/) do |line|
+                  file = "vendor/cache/marqius-wkhtmltopdf-#{$1}.gem"
+                  File.exist?(file) ? "#{line} sha256=#{Digest::SHA256.file(file).hexdigest}" : line
+                end
+                File.write("Gemfile.lock", lock)'
+        fi
         bundle config set --local deployment true
         bundle config set --local path vendor/bundle
         bundle config set --local bin vendor/bundle/bin
