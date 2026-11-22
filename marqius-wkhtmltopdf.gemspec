@@ -9,12 +9,15 @@ Gem::Specification.new do |spec|
   spec.version = MarqiusWkhtmltopdf::VERSION
   spec.authors = ["Simple AI LLC"]
   spec.email = ["hello@marqius.com"]
-  spec.summary = "marqius-wkhtmltopdf, the maintained drop-in replacement for wkhtmltopdf, " \
-                 "for wicked_pdf and PDFKit (commercial, 30-day trial)"
-  spec.description = "The maintained drop-in replacement for wkhtmltopdf, in place of the " \
-                     "wkhtmltopdf-binary gem: wicked_pdf and PDFKit find it with no change. Each " \
-                     "platform's gem carries the program, so nothing else is downloaded, at install " \
-                     "or when your code runs."
+  spec.summary = "The wkhtmltopdf gem for Rails, wicked_pdf and PDFKit: a maintained drop-in " \
+                 "replacement for wkhtmltopdf-binary that works on Heroku-24 and Debian 13 " \
+                 "(commercial, 30-day trial)"
+  spec.description = "Add one line to your Gemfile and wicked_pdf or PDFKit keep making PDFs on " \
+                     "Heroku-24, Debian 13, Alpine and macOS, with no other change; it runs on " \
+                     "Windows too. It replaces the wkhtmltopdf-binary gem and fixes \"wkhtmltopdf " \
+                     "not found\" and \"libssl.so.1.1\" errors. Each platform's gem carries the " \
+                     "program, so nothing else is downloaded. Personal, teaching and open-source " \
+                     "use is free with a Community licence."
   spec.homepage = "https://marqius.com/wkhtmltopdf/"
   spec.license = "LicenseRef-marqius-wkhtmltopdf"
   spec.metadata = {

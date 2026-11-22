@@ -4,10 +4,11 @@
 #                  programs is checked against the release's SHA-256 and the build provenance GitHub
 #                  signed for it, and a gem is made for each platform. Bundler installs them with the
 #                  README's line in new projects on Linux (x86-64 and ARM64: Debian 13, Alpine and
-#                  Ubuntu 24.04, Heroku-24's system), macOS (Apple silicon) and Windows, where
-#                  wicked_pdf and PDFKit make PDFs with them, and wicked_pdf's and PDFKit's own test
-#                  suites run with them on Linux. Only then are they published, with attestations,
-#                  the version committed and tagged, and the README's lines run again from RubyGems.
+#                  Ubuntu 24.04, Heroku-24's system, also as Heroku installs), macOS (Apple silicon)
+#                  and Windows, where wicked_pdf and PDFKit make PDFs with them, and wicked_pdf's and
+#                  PDFKit's own test suites run with them on Linux. Only then are they published,
+#                  with attestations, the version committed and tagged, and the README's lines run
+#                  again from RubyGems.
 #   by hand        Actions > Release > Run workflow: the same, now; it also publishes the gem's own
 #                  release if RubyGems lacks it, which is how the first release goes out
 #   on a change    to main, or in a pull request: the gem as it stands, on the same machines
@@ -83,12 +84,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "Linux x86-64, Debian 13", runner: ubuntu-24.04, image: "ruby:3.4-trixie", platform: x86_64-linux }
-          - { name: "Linux x86-64, Alpine", runner: ubuntu-24.04, image: "ruby:4.0-alpine", platform: x86_64-linux }
+          - { name: "Linux x86-64, Debian 13", runner: ubuntu-24.04, image: "ruby:3.4-trixie", nofonts: "ruby:3.4-slim-trixie", platform: x86_64-linux }
+          - { name: "Linux x86-64, Alpine", runner: ubuntu-24.04, image: "ruby:4.0-alpine", nofonts: "ruby:4.0-alpine", platform: x86_64-linux }
           - { name: "Linux x86-64, Ruby 2.7", runner: ubuntu-24.04, image: "ruby:2.7", platform: x86_64-linux }
           - { name: "Linux x86-64, Ubuntu 24.04", runner: ubuntu-24.04, ruby: "3.3", platform: x86_64-linux }
-          - { name: "Linux ARM64, Debian 13", runner: ubuntu-24.04-arm, image: "ruby:3.4-trixie", platform: aarch64-linux }
-          - { name: "Linux ARM64, Alpine", runner: ubuntu-24.04-arm, image: "ruby:4.0-alpine", platform: aarch64-linux }
+          - { name: "Linux x86-64, Ubuntu 24.04, installed as Heroku installs", runner: ubuntu-24.04, ruby: "3.3", platform: x86_64-linux, heroku: "yes" }
+          - { name: "Linux ARM64, Debian 13", runner: ubuntu-24.04-arm, image: "ruby:3.4-trixie", nofonts: "ruby:3.4-slim-trixie", platform: aarch64-linux }
+          - { name: "Linux ARM64, Alpine", runner: ubuntu-24.04-arm, image: "ruby:4.0-alpine", nofonts: "ruby:4.0-alpine", platform: aarch64-linux }
           - { name: "Linux ARM64, Ubuntu 24.04", runner: ubuntu-24.04-arm, ruby: "3.3", platform: aarch64-linux }
           - { name: "macOS, Apple silicon", runner: macos-15, ruby: "4.0", platform: arm64-darwin }
           - { name: "Windows x64", runner: windows-2025, ruby: "3.4", platform: x64-mingw-ucrt, zero: "no" }
@@ -124,6 +126,17 @@ jobs:
             pdftotext "$f" - | grep -q 'Invoice 42' || { echo "::error::$f does not read Invoice 42"; exit 1; }
             echo "reads Invoice 42: $f"
           done
+      - if: matrix.nofonts != ''
+        name: In a new ${{ matrix.nofonts }} container without fonts, the program prints the line that installs them
+        env:
+          IMAGE: ${{ matrix.nofonts }}
+        run: |
+          # gem install chooses this machine's gem from the folder, as RubyGems does from RubyGems.org
+          docker run --rm -v "$GITHUB_WORKSPACE/pkg:/pkg:ro" "$IMAGE" sh -c '
+            cd /pkg && gem install --local --no-document marqius-wkhtmltopdf && cd /tmp &&
+            echo "<h1>Invoice 42</h1>" >a.html && wkhtmltopdf a.html a.pdf' >nofonts.log 2>&1 || true
+          cat nofonts.log
+          grep -E 'apk add|apt-get install|apt install' nofonts.log || { echo "::error::no line that installs fonts"; exit 1; }
       - if: matrix.ruby != ''
         uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
@@ -133,6 +146,7 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
           ZERO_CONFIG: ${{ matrix.zero || 'yes' }}
+          HEROKU: ${{ matrix.heroku || 'no' }}
         run: |
           work=$RUNNER_TEMP/work gems=$GITHUB_WORKSPACE/pkg
           if command -v cygpath >/dev/null; then work=$(cygpath -m "$work") gems=$(cygpath -m "$gems"); fi

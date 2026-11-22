@@ -3,11 +3,14 @@
 #
 #   tests/examples.sh WORK [LIBRARY ...]     LIBRARY: pdfkit, wicked_pdf, wicked_pdf-2.7 or plain
 #
-# For each library, in a new project with the library and the README's Gemfile line:
+# For each library, in a new project with the library, the README's Gemfile line and the README's
+# `bundle install` line:
 #   1. nothing configured, as in most apps: the library finds the gem's wkhtmltopdf with Bundler by
 #      itself (and no other wkhtmltopdf is there to find), and makes a PDF;
 #   2. the README's lines that name MarqiusWkhtmltopdf.executable_path, and a PDF made with them;
-#   3. the README's `bundle lock` line, which must lock the gem for Linux x86-64 and ARM64.
+#   3. the README's `bundle lock` line, which must lock the gem for Linux x86-64 and ARM64;
+#   4. the README's `bundle update` line, after which Bundler keeps this machine's gem;
+#   5. the README's `licence` line, which shows the trial or the licence.
 # Each PDF must start with %PDF-, name marqius as its producer and, where pdftotext is, read
 # Invoice 42. `plain` checks what the plain ruby gem says on a platform that has no gem.
 #
@@ -15,6 +18,9 @@
 # project's vendor/cache, where Bundler chooses this machine's gem as it would from RubyGems, and the
 # Gemfile line runs as printed. PLATFORM, if set, is the gem that must be chosen (x86_64-linux, ...).
 # ZERO_CONFIG=no leaves out step 1 (Windows: libraries there cannot start the gem's commands).
+# HEROKU=yes installs as Heroku's Ruby buildpack does: once Gemfile.lock holds Linux (the README's
+# lock line, as before a first deploy), a frozen install into vendor/bundle, its binstubs in
+# vendor/bundle/bin; steps 1, 2 and 5 then run on that bundle (3 ran before it, 4 cannot run frozen).
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 work=$1
@@ -26,6 +32,15 @@ fail() {
     exit 1
 }
 readme() { ruby "$here/tests/readme.rb" "$1"; }
+retry() { # for what fetches gems from the network, never for the checks
+    n=1
+    until "$@"; do
+        [ "$n" -ge 3 ] && return 1
+        echo "retrying ($n): $*" >&2
+        sleep $((n * 10))
+        n=$((n + 1))
+    done
+}
 
 project() { # a new project: the library, then the README's Gemfile line, as printed
     dir=$work/$lib
@@ -39,7 +54,19 @@ project() { # a new project: the library, then the README's Gemfile line, as pri
         cp "$GEMS"/marqius-wkhtmltopdf-*.gem vendor/cache/
     fi
     cat Gemfile
-    bundle install --jobs 4 --retry 3 >bundle.log 2>&1 || { cat bundle.log; fail "bundle install"; }
+    line=$(readme bundle)
+    say "$line"
+    retry sh -c "$line" >bundle.log 2>&1 || { cat bundle.log; fail "$line"; }
+    if [ "${HEROKU:-no}" = yes ]; then
+        lock
+        bundle config set --local deployment true
+        bundle config set --local path vendor/bundle
+        bundle config set --local bin vendor/bundle/bin
+        bundle config set --local without development:test
+        retry bundle install >>bundle.log 2>&1 || { cat bundle.log; fail "bundle install, frozen, into vendor/bundle"; }
+        at=$(bundle exec ruby -e 'print Gem.loaded_specs.fetch("marqius-wkhtmltopdf").full_gem_path')
+        case $at in */vendor/bundle/*) echo "installed as Heroku installs: $at" ;; *) fail "the gem is at $at, not in vendor/bundle" ;; esac
+    fi
     chosen=$(bundle exec ruby -e 'print Gem.loaded_specs.fetch("marqius-wkhtmltopdf").platform')
     echo "Bundler chose marqius-wkhtmltopdf for $chosen"
     [ "$chosen" != ruby ] || fail "Bundler chose the plain ruby gem"
@@ -90,6 +117,21 @@ lock() { # step 3: the README's bundle lock line, as printed
     echo "ok $lib: Gemfile.lock holds marqius-wkhtmltopdf for x86_64-linux and aarch64-linux"
 }
 
+update() { # step 4: the README's bundle update line, as printed
+    line=$(readme update)
+    say "$line"
+    retry sh -c "$line" >update.log 2>&1 || { cat update.log; fail "$line"; }
+    after=$(bundle exec ruby -e 'print Gem.loaded_specs.fetch("marqius-wkhtmltopdf").platform')
+    [ "$after" = "$chosen" ] || fail "after $line, Bundler chose $after, not $chosen"
+    echo "ok $lib: after $line, Bundler keeps marqius-wkhtmltopdf for $after"
+}
+
+after_heroku() { # steps 3 and 4, except on a frozen Heroku-style bundle (3 ran before it)
+    [ "${HEROKU:-no}" = yes ] && return
+    lock
+    update
+}
+
 for lib in $libraries; do
     say "$lib ($(ruby -e 'print RUBY_DESCRIPTION'); RubyGems $(gem --version); $(bundle --version))"
     case $lib in
@@ -99,7 +141,7 @@ for lib in $libraries; do
         readme_lines "example: pdfkit" '
 PDFKit.new("<h1>Invoice 42</h1>").to_file("invoice.pdf")
 abort "PDFKit runs #{PDFKit.configuration.wkhtmltopdf}" unless PDFKit.configuration.wkhtmltopdf == MarqiusWkhtmltopdf.executable_path'
-        lock
+        after_heroku
         ;;
     wicked_pdf | wicked_pdf-2.7)
         if [ "$lib" = wicked_pdf ]; then
@@ -111,7 +153,7 @@ abort "PDFKit runs #{PDFKit.configuration.wkhtmltopdf}" unless PDFKit.configurat
         readme_lines "example: $(echo "$lib" | sed 's/-/ /')" '
 File.binwrite("invoice.pdf", WickedPdf.new.pdf_from_string("<h1>Invoice 42</h1>"))
 abort "wicked_pdf runs #{WickedPdf.config[:exe_path]}" unless WickedPdf.config[:exe_path] == MarqiusWkhtmltopdf.executable_path'
-        lock
+        after_heroku
         ;;
     plain)
         # the plain ruby gem, as Bundler installs it where no platform gem fits the lockfile
@@ -140,5 +182,9 @@ end' 2>&1) && fail "no error"
     esac
     bundle exec marqius-wkhtmltopdf --version | grep '^marqius-wkhtmltopdf [0-9]' || fail "marqius-wkhtmltopdf --version"
     bundle exec ruby -e 'Bundler.require; system(MarqiusWkhtmltopdf.executable_path, "-V", exception: true)' | grep "compatible; marqius-wkhtmltopdf" || fail "executable_path -V"
+    line=$(readme licence) # step 5, as printed
+    said=$(sh -c "$line" 2>&1) || { echo "$said"; fail "$line"; }
+    echo "$said" | head -n 2
+    echo "$said" | grep -q -i -E 'trial|licen' || fail "$line said: $said"
 done
 say "all passed: $libraries"

@@ -1,34 +1,43 @@
-# marqius-wkhtmltopdf for Ruby
+# marqius-wkhtmltopdf: the wkhtmltopdf gem for Rails, wicked_pdf and PDFKit
 
-**marqius-wkhtmltopdf** is the maintained drop-in replacement for wkhtmltopdf. This gem puts it in your Ruby or Rails app in place of `wkhtmltopdf-binary`: keep wicked_pdf or PDFKit, your templates and your PDF calls. It runs on Linux (x86-64 and ARM64, glibc and musl, including Heroku-24 and Debian 13), Apple silicon Macs and Windows (x64), and needs no X server, Qt or system libraries.
+**marqius-wkhtmltopdf is the maintained drop-in replacement for wkhtmltopdf, as a Ruby gem.** Add one line to your Gemfile, and wicked_pdf or PDFKit keep making PDFs on Heroku-24, Debian 13, Alpine and macOS, with no other change. It replaces the `wkhtmltopdf-binary` gem, and it runs on Windows too.
 
-## Install
+## How do I install wkhtmltopdf in a Rails app?
 
-In your Gemfile, in place of `gem "wkhtmltopdf-binary"`:
+Add the gem to your Gemfile:
 
 <!-- install -->
 ```ruby
 gem "marqius-wkhtmltopdf"
 ```
 
-Then run `bundle install`. Bundler installs the gem for your platform, which carries the program itself: nothing else is downloaded, at install or when your code runs, so it works in CI and, from `bundle cache --all-platforms`, on servers that cannot reach the internet.
+Then install it:
 
-If you work on a Mac and deploy to Linux, add Linux to your `Gemfile.lock` once:
+<!-- bundle -->
+```bash
+bundle install
+```
+
+That's all. Bundler picks the gem for your computer, and that gem carries the program, so nothing else is downloaded, at install or when your app runs. It works in CI too. For a server that cannot reach the internet, install from `bundle cache --all-platforms`.
+
+Do you work on a Mac and deploy to Linux? Add Linux to your `Gemfile.lock` once:
 
 <!-- lock -->
 ```bash
 bundle lock --add-platform x86_64-linux aarch64-linux
 ```
 
-## wicked_pdf and PDFKit
+## What replaces the wkhtmltopdf-binary gem?
 
-On Linux and macOS, wicked_pdf and PDFKit find the gem's `wkhtmltopdf` as they found wkhtmltopdf-binary's: nothing else changes.
+marqius-wkhtmltopdf does. In your Gemfile, replace `gem "wkhtmltopdf-binary"` with `gem "marqius-wkhtmltopdf"`, then run `bundle install`. On Linux and macOS, wicked_pdf and PDFKit find the new program by themselves.
 
-If your code names the program, for instance with `Gem.bin_path("wkhtmltopdf-binary", "wkhtmltopdf")` or `/usr/local/bin/wkhtmltopdf`, name `MarqiusWkhtmltopdf.executable_path` instead. On Windows, always name it.
+wkhtmltopdf-binary is a 450 MB download of wkhtmltopdf builds made for older systems. Each marqius-wkhtmltopdf gem is about 9 MB and carries one maintained program, for your platform.
 
-### wicked_pdf
+## How do I use wkhtmltopdf with wicked_pdf on Heroku-24 or Debian 13?
 
-In `config/initializers/wicked_pdf.rb`:
+Install the gem. On Linux and macOS, wicked_pdf finds it by itself, so you change nothing else.
+
+Your code may name the program, for example with `Gem.bin_path("wkhtmltopdf-binary", "wkhtmltopdf")` or `/usr/local/bin/wkhtmltopdf`. If so, point it at the gem instead; on Windows, always do this. In `config/initializers/wicked_pdf.rb`:
 
 <!-- example: wicked_pdf -->
 ```ruby
@@ -44,7 +53,9 @@ wicked_pdf 2.7 and earlier have no `WickedPdf.configure`. There, write:
 WickedPdf.config[:exe_path] = MarqiusWkhtmltopdf.executable_path
 ```
 
-### PDFKit
+## How do I use wkhtmltopdf with PDFKit?
+
+Install the gem. On Linux and macOS, PDFKit finds it by itself. To name it yourself, as on Windows:
 
 <!-- example: pdfkit -->
 ```ruby
@@ -53,22 +64,64 @@ PDFKit.configure do |config|
 end
 ```
 
-## Proof
+## Why do I get "wkhtmltopdf not found" errors?
 
-wicked_pdf and PDFKit pass their own test suites with marqius-wkhtmltopdf, on GitHub's machines, for every release: [wkhtmltopdf library tests](https://github.com/marqiushq/wkhtmltopdf-library-tests). Before each version of this gem is published, [its workflow](https://github.com/marqiushq/marqius-wkhtmltopdf-ruby/blob/main/.github/workflows/release.yml) runs both suites again with the gem itself, on Linux (x86-64 and ARM64), and the lines above on Linux, macOS and Windows.
+Your library cannot find a wkhtmltopdf program:
 
-## Updates
+- wicked_pdf says "Location of wkhtmltopdf unknown" or "Bad wkhtmltopdf's path".
+- PDFKit says "No wkhtmltopdf executable found".
+
+Install this gem. On Linux and macOS, both libraries then find the program by themselves. If your code names a path, or you are on Windows, point it at `MarqiusWkhtmltopdf.executable_path`, as shown above.
+
+## Why does wkhtmltopdf fail with "libssl.so.1.1: cannot open shared object file"?
+
+Your wkhtmltopdf was built for an older system. It needs OpenSSL 1.1, which Heroku-24 (Ubuntu 24.04) and Debian 13 no longer include. marqius-wkhtmltopdf needs no system libraries, so it runs there as it is.
+
+## Which systems does marqius-wkhtmltopdf run on?
+
+It runs on:
+
+- Linux on x86-64 and ARM64, with glibc or musl (so Alpine too);
+- Macs with Apple silicon;
+- Windows on x64.
+
+Bundler installs the right gem for each. It needs no X server, Qt or system libraries. In a slim or Alpine image without fonts, the program says so and prints the one line that installs them.
+
+## Is marqius-wkhtmltopdf free?
+
+You can try it free for 30 days. Personal, teaching and open-source use is free with a [Community licence](https://marqius.com/wkhtmltopdf-buy/#community): sign in with Google and your free key is waiting in your account.
+
+Anything done by or for a business, including internal tools and client work, needs Starter or above once the trial ends. Starter is $290 USD a year for organisations of up to 10 people, and Business $990 USD a year, plus applicable taxes.
+
+Your PDFs never stop. Without a licence after the trial, each page carries one line, "Prepared by Marqius, Purchase Licence". [Plans and licences](https://marqius.com/licence/marqius-wkhtmltopdf) · [Licence terms](https://marqius.com/wkhtmltopdf/licence-agreement/)
+
+## How do I add my licence key?
+
+Set the `MARQIUS_LICENCE` environment variable to your licence; that is the way for Heroku, containers and CI. Or save it as `licence.txt` and run `bundle exec marqius-wkhtmltopdf licence add licence.txt`.
+
+To see the trial's days left, or the licence in force:
+
+<!-- licence -->
+```bash
+bundle exec marqius-wkhtmltopdf licence
+```
+
+## Does it pass wicked_pdf's and PDFKit's own tests?
+
+Yes. wicked_pdf and PDFKit pass their own test suites with marqius-wkhtmltopdf: all 45 of wicked_pdf's tests, and PDFKit's with no failures. The results are public: [wkhtmltopdf library tests](https://github.com/marqiushq/wkhtmltopdf-library-tests).
+
+Before each version of this gem is published, [its workflow](https://github.com/marqiushq/marqius-wkhtmltopdf-ruby/blob/main/.github/workflows/release.yml) runs:
+
+- both suites again, with the gem itself, on Linux (x86-64 and ARM64);
+- the install steps and examples on this page, on Linux, macOS and Windows.
+
+## How do I update it?
 
 Each version of this gem carries the marqius-wkhtmltopdf release with the same number. To move to the newest:
 
+<!-- update -->
 ```bash
 bundle update marqius-wkhtmltopdf
 ```
-
-## Licence
-
-marqius-wkhtmltopdf is commercial software from Simple AI LLC, free for 30 days from its first run. After the trial, without a licence, each page carries one line, "Prepared by Marqius, Purchase Licence". Personal, teaching and open-source use is free with a Community licence. For business use, Starter is $290 USD a year for organisations of up to 10 people, and Business $990 USD a year, plus applicable taxes. [Plans and licences](https://marqius.com/licence/marqius-wkhtmltopdf) · [Licence terms](https://marqius.com/wkhtmltopdf/licence-agreement/)
-
-Give the program your licence in the `MARQIUS_LICENCE` environment variable, the way for Heroku, containers and CI, or store it with `bundle exec marqius-wkhtmltopdf licence add licence.txt`. `bundle exec marqius-wkhtmltopdf licence` shows the trial's days left.
 
 This gem's own Ruby files are under the MIT licence: [LICENSE.md](LICENSE.md).
