@@ -11,7 +11,9 @@
 #                  again from RubyGems.
 #   by hand        Actions > Release > Run workflow: the same, now; it also publishes the gem's own
 #                  release if RubyGems lacks it, which is how the first release goes out
-#   on a change    to main, or in a pull request: the gem as it stands, on the same machines
+#   on a change    to main, or in a pull request: the gem as it stands, on the same machines; a version
+#                  RubyGems already has is tested as RubyGems serves it (Bundler rightly refuses a
+#                  rebuilt gem of a version it knows, and a README change alone rebuilds them all)
 #   publishing     only from a public repository whose variable PUBLISHING is "on", through RubyGems'
 #                  trusted publishing (no token is stored); while private, the hourly check does not run
 name: Release
@@ -39,6 +41,7 @@ jobs:
     outputs:
       publish: ${{ steps.follow.outputs.publish }}
       version: ${{ steps.follow.outputs.version }}
+      published: ${{ steps.follow.outputs.published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: follow
@@ -56,8 +59,11 @@ jobs:
               publish=true # run by hand, and RubyGems lacks the gem's own release (or one of its five gems): the first one
             fi
           fi
-          echo "gem $have, marqius-wkhtmltopdf ${latest:-not asked}: publish=$publish version=$target"
-          printf 'publish=%s\nversion=%s\n' "$publish" "$target" >>"$GITHUB_OUTPUT"
+          # all five gems of this version already on RubyGems: the examples take them from there
+          published=false
+          [ "$(curl -fsS https://rubygems.org/api/v1/versions/marqius-wkhtmltopdf.json 2>/dev/null | jq --arg v "$target" '[.[] | select(.number == $v)] | length' 2>/dev/null)" = 5 ] && published=true
+          echo "gem $have, marqius-wkhtmltopdf ${latest:-not asked}: publish=$publish version=$target published=$published"
+          printf 'publish=%s\nversion=%s\npublished=%s\n' "$publish" "$target" "$published" >>"$GITHUB_OUTPUT"
       - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: "3.4"
@@ -113,10 +119,12 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
           PLATFORM: ${{ matrix.platform }}
+          # the gems made here, or none where RubyGems already has this version: then RubyGems' own
+          GEMS: ${{ needs.follow.outputs.published != 'true' && '/w/pkg' || '' }}
         run: |
           # the image as it is, with the fonts this machine installed above (read-only); on Alpine,
           # also the compilers that some of activesupport's gems build with, as Alpine apps install
-          docker run --rm -e GEMS=/w/pkg -e PLATFORM -v /usr/share/fonts:/usr/share/fonts:ro \
+          docker run --rm -e GEMS -e PLATFORM -v /usr/share/fonts:/usr/share/fonts:ro \
             -v "$GITHUB_WORKSPACE:/w" -w /w "$IMAGE" sh -c '
             set -e
             if command -v apk >/dev/null; then apk add --no-cache -q build-base; fi
@@ -149,9 +157,12 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           ZERO_CONFIG: ${{ matrix.zero || 'yes' }}
           HEROKU: ${{ matrix.heroku || 'no' }}
+          PUBLISHED: ${{ needs.follow.outputs.published }}
         run: |
           work=$RUNNER_TEMP/work gems=$GITHUB_WORKSPACE/pkg
           if command -v cygpath >/dev/null; then work=$(cygpath -m "$work") gems=$(cygpath -m "$gems"); fi
+          # a version RubyGems already has: its own gems, as the README's lines get them
+          [ "$PUBLISHED" = true ] && gems=
           libraries="pdfkit wicked_pdf wicked_pdf-2.7 plain"
           [ "$RUNNER_OS" = Windows ] && libraries="pdfkit wicked_pdf wicked_pdf-2.7"
           # the README's eight-language invoice, after its fonts line on Ubuntu (not on a frozen Heroku-style bundle)
