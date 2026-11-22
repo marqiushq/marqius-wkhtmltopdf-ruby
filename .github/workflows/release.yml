@@ -154,6 +154,8 @@ jobs:
           if command -v cygpath >/dev/null; then work=$(cygpath -m "$work") gems=$(cygpath -m "$gems"); fi
           libraries="pdfkit wicked_pdf wicked_pdf-2.7 plain"
           [ "$RUNNER_OS" = Windows ] && libraries="pdfkit wicked_pdf wicked_pdf-2.7"
+          # the README's eight-language invoice, after its fonts line on Ubuntu (not on a frozen Heroku-style bundle)
+          [ "$HEROKU" = yes ] || libraries="$libraries languages"
           GEMS=$gems sh tests/examples.sh "$work" $libraries
 
   suites:

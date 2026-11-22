@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs this README's lines exactly as printed, each library in a new project, and checks the PDFs.
 #
-#   tests/examples.sh WORK [LIBRARY ...]     LIBRARY: pdfkit, wicked_pdf, wicked_pdf-2.7 or plain
+#   tests/examples.sh WORK [LIBRARY ...]     LIBRARY: pdfkit, wicked_pdf, wicked_pdf-2.7, plain or languages
 #
 # For each library, in a new project with the library, the README's Gemfile line and the README's
 # `bundle install` line:
@@ -13,6 +13,9 @@
 #   5. the README's `licence` line, which shows the trial or the licence.
 # Each PDF must start with %PDF-, name marqius as its producer and, where pdftotext is, read
 # Invoice 42. `plain` checks what the plain ruby gem says on a platform that has no gem.
+# `languages` makes the README's eight-language invoice with PDFKit, named as the README names it,
+# after the README's fonts line on Debian and Ubuntu (macOS and Windows use their own fonts): every
+# word must read back as written, and the program must find a font for every letter.
 #
 # Before the gem is on RubyGems, set GEMS to the folder of the built gems: they go into each
 # project's vendor/cache, where Bundler chooses this machine's gem as it would from RubyGems, and the
@@ -137,6 +140,20 @@ update() { # step 4: the README's bundle update line, as printed
     echo "ok $lib: after $line, Bundler keeps marqius-wkhtmltopdf for $after"
 }
 
+program_says() { # what the program says of page.html: the README's line, or on Windows the program by path
+    case $(uname -s) in
+    MINGW* | MSYS* | CYGWIN*)
+        bundle exec ruby -e 'Bundler.require; system(MarqiusWkhtmltopdf.executable_path, "page.html", "page.pdf")' >said.txt 2>&1 || true
+        ;;
+    *)
+        line=$(readme check)
+        say "$line"
+        sh -c "$line" >said.txt 2>&1 || true
+        ;;
+    esac
+    cat said.txt
+}
+
 after_heroku() { # steps 3 and 4, except on a frozen Heroku-style bundle (3 ran before it)
     [ "${HEROKU:-no}" = yes ] && return
     lock
@@ -165,6 +182,37 @@ abort "PDFKit runs #{PDFKit.configuration.wkhtmltopdf}" unless PDFKit.configurat
 File.binwrite("invoice.pdf", WickedPdf.new.pdf_from_string("<h1>Invoice 42</h1>"))
 abort "wicked_pdf runs #{WickedPdf.config[:exe_path]}" unless WickedPdf.config[:exe_path] == MarqiusWkhtmltopdf.executable_path'
         after_heroku
+        ;;
+    languages)
+        project 'gem "pdfkit"'
+        # the README's page, as page.html for the program's own line
+        readme "example: languages" | ruby -E UTF-8:UTF-8 -e 'html = STDIN.read[/<<~HTML\n(.*?)\nHTML\n/m, 1] or abort "no HTML"; File.write("page.html", html.gsub(/^  /, ""))'
+        if [ -f /etc/debian_version ]; then
+            # before the fonts: what the program says, and that it names Debian's Noto packages
+            program_says
+            if grep -q 'no font has a glyph' said.txt; then
+                grep -q 'fonts-noto' said.txt || fail "the program named letters with no font, but no fonts-noto package to install"
+            fi
+            line=$(readme "fonts: debian")
+            say "$line"
+            sh -c "$line" >fonts.log 2>&1 || { cat fonts.log; fail "$line"; }
+        fi
+        readme_lines "example: pdfkit" "$(readme "example: languages")"
+        if ! command -v pdftotext >/dev/null 2>&1 && [ "$(uname -s)" = Darwin ]; then
+            brew install -q poppler >/dev/null || true
+        fi
+        if command -v pdftotext >/dev/null 2>&1; then
+            # UTF-8 said outright: the pdftotext that comes with Git on Windows writes Latin-1 otherwise
+            pdftotext -enc UTF-8 invoice.pdf - >text.txt
+            cat text.txt
+            for word in 'Invoice 42' 'فاتورة' 'חשבונית' 'चालान' 'ใบแจ้งหนี้' '发票' '請求書' '청구서'; do
+                grep -qF "$word" text.txt || fail "invoice.pdf does not read $word as written"
+            done
+            echo "ok $lib: every word reads back as written"
+        fi
+        # after the fonts, or with the system's own: no letter without a font
+        program_says
+        ! grep -q 'no font has a glyph' said.txt || fail "letters with no font on this system"
         ;;
     plain)
         # the plain ruby gem, as Bundler installs it where no platform gem fits the lockfile

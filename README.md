@@ -1,6 +1,6 @@
 # marqius-wkhtmltopdf: the wkhtmltopdf gem for Rails, wicked_pdf and PDFKit
 
-**marqius-wkhtmltopdf is the maintained drop-in replacement for wkhtmltopdf, as a Ruby gem.** Add one line to your Gemfile, and wicked_pdf or PDFKit keep making PDFs on Heroku-24, Debian 13, Alpine and macOS, with no other change. It replaces the `wkhtmltopdf-binary` gem, and it runs on Windows too.
+**marqius-wkhtmltopdf is the maintained drop-in replacement for wkhtmltopdf, as a Ruby gem.** Add one line to your Gemfile, and wicked_pdf or PDFKit keep making PDFs on Heroku-24, Debian 13, Alpine and macOS, with no other change. It replaces the `wkhtmltopdf-binary` gem, and it runs on Windows too. It prints Arabic, Hebrew, Hindi, Thai, Chinese, Japanese and Korean as well as English.
 
 ## How do I install wkhtmltopdf in a Rails app?
 
@@ -64,6 +64,76 @@ PDFKit.configure do |config|
 end
 ```
 
+## Which languages can it print?
+
+All of these, even on one page. Each one is tested on real invoices, letters and receipts, and the PDF keeps the words as text, so you can search and copy them.
+
+| Language | On a Linux server | On a Mac or Windows |
+|---|---|---|
+| English, French, German, Spanish and other languages in Latin letters; Greek; Russian | Works with the fonts most servers have | Works |
+| Arabic and Hebrew, from right to left | Works: the fonts are built in | Works |
+| Hindi and Thai | Install `fonts-noto-core` | Works |
+| Chinese, Japanese and Korean | Install `fonts-noto-cjk` | Works |
+
+On Debian or Ubuntu, this one line installs the fonts for every language above:
+
+<!-- fonts: debian -->
+```bash
+sudo apt-get update && sudo apt-get install -y fonts-noto-core fonts-noto-cjk
+```
+
+In a Dockerfile, put the same line after `RUN`, without `sudo`. On Alpine, Fedora, Red Hat or Arch, the program tells you the line for your system ([see below](#why-do-letters-show-as-boxes-or-blanks-in-my-pdf)).
+
+Then one invoice can carry them all, here with PDFKit:
+
+<!-- example: languages -->
+```ruby
+html = <<~HTML
+  <!doctype html>
+  <meta charset="utf-8">
+  <h1>Invoice 42</h1>
+  <p lang="ar" dir="rtl">فاتورة 42</p>
+  <p lang="he" dir="rtl">חשבונית 42</p>
+  <p lang="hi">चालान 42</p>
+  <p lang="th">ใบแจ้งหนี้ 42</p>
+  <p lang="zh">发票 42</p>
+  <p lang="ja">請求書 42</p>
+  <p lang="ko">청구서 42</p>
+HTML
+
+PDFKit.new(html).to_file("invoice.pdf")
+```
+
+With wicked_pdf, the same page works: `File.binwrite("invoice.pdf", WickedPdf.new.pdf_from_string(html))`.
+
+For a page all in Arabic or Hebrew, put `dir="rtl"` on its `<html>` tag. The page then reads from the right, and its tables and lists turn to match.
+
+## Why do letters show as boxes or blanks in my PDF?
+
+The computer that makes the PDF has no font for them. On Linux, install the fonts [above](#which-languages-can-it-print). To see what is missing, convert your page with the program itself:
+
+<!-- check -->
+```bash
+bundle exec wkhtmltopdf page.html page.pdf
+```
+
+It names each letter it could not print, then gives the one line that installs fonts for them on your system: `apt-get` on Debian and Ubuntu, `apk` on Alpine, `dnf` on Fedora and Red Hat, `pacman` on Arch.
+
+## Why can't I search or copy Arabic, Chinese or Hindi text in my wkhtmltopdf PDF?
+
+wkhtmltopdf often stores these scripts as shapes, not words. The public parity suite prints the same pages with both programs:
+
+- **Arabic:** from wkhtmltopdf's invoice, 2 of its 56 words read back as written; from marqius-wkhtmltopdf's, 48.
+- **Hebrew:** wkhtmltopdf splits many words into single letters (28 of 48 read back); marqius-wkhtmltopdf gives back 43.
+- **Chinese:** wkhtmltopdf puts look-alike signs in place of some characters, so a search for the company's name finds nothing. marqius-wkhtmltopdf keeps the real characters.
+- **Hindi and Thai:** wkhtmltopdf loses letters and splits off marks. marqius-wkhtmltopdf's text reads back clean.
+
+The pages themselves look the same. [See every page and score](https://github.com/marqiushq/wkhtmltopdf-parity).
+
+## Why are accented letters garbled, like Ã© for é?
+
+Your page does not say that it is UTF-8, so wkhtmltopdf reads it as an old Western character set. marqius-wkhtmltopdf prints é, € and ü as written anyway. To make every program agree, put `<meta charset="utf-8">` at the top of your page.
+
 ## Why do I get "wkhtmltopdf not found" errors?
 
 Your library cannot find a wkhtmltopdf program:
@@ -113,7 +183,7 @@ Yes. wicked_pdf and PDFKit pass their own test suites with marqius-wkhtmltopdf: 
 Before each version of this gem is published, [its workflow](https://github.com/marqiushq/marqius-wkhtmltopdf-ruby/blob/main/.github/workflows/release.yml) runs:
 
 - both suites again, with the gem itself, on Linux (x86-64 and ARM64);
-- the install steps and examples on this page, on Linux, macOS and Windows.
+- the install steps and examples on this page, the eight-language invoice among them, on Linux, macOS and Windows.
 
 ## How do I update it?
 
