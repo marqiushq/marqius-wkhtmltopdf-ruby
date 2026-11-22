@@ -215,7 +215,24 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: pkg/*.gem
-      - uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Trusted publishing, naming the gem's owner
+        # GitHub's OIDC token, exchanged for a RubyGems key that can push for 15 minutes. The first
+        # push, which creates the gem, must name the RubyGems account that set up the pending trusted
+        # publisher (its immutable ID, shown on that page); rubygems/configure-rubygems-credentials
+        # v2.1.0 cannot pass it yet, so the exchange is made here, as RubyGems.org's API documents it
+        env:
+          OWNER: "256575"
+        run: |
+          jwt=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=rubygems.org" | jq -r .value)
+          answer=$(jq -n --arg jwt "$jwt" --arg owner "$OWNER" '{jwt: $jwt, owner: $owner}' |
+            curl -fsS -X POST https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token \
+              -H "Content-Type: application/json" --data-binary @-)
+          key=$(echo "$answer" | jq -r .rubygems_api_key)
+          [ -n "$key" ] && [ "$key" != null ] || { echo "::error::RubyGems gave no key"; exit 1; }
+          echo "::add-mask::$key"
+          echo "GEM_HOST_API_KEY=$key" >>"$GITHUB_ENV"
+          echo "$answer" | jq '{name, scopes, gem, owner, expires_at}'
       - name: Push each gem to RubyGems, with its Sigstore attestation
         env:
           VERSION: ${{ needs.follow.outputs.version }}
