@@ -16,8 +16,9 @@ Gem::Specification.new do |spec|
                      "Heroku-24, Debian 13, Alpine and macOS, with no other change; it runs on " \
                      "Windows too. It replaces the wkhtmltopdf-binary gem and fixes \"wkhtmltopdf " \
                      "not found\" and \"libssl.so.1.1\" errors. Each platform's gem carries the " \
-                     "program, so nothing else is downloaded. Personal, teaching and open-source " \
-                     "use is free with a Community licence."
+                     "program, so nothing else is downloaded. It prints Arabic, Hebrew, Hindi, Thai, " \
+                     "Chinese, Japanese and Korean as well as English. Personal, teaching and " \
+                     "open-source use is free with a Community licence."
   spec.homepage = "https://marqius.com/wkhtmltopdf/"
   spec.license = "LicenseRef-marqius-wkhtmltopdf"
   spec.metadata = {
