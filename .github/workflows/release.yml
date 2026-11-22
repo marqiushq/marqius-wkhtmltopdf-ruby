@@ -130,10 +130,12 @@ jobs:
         name: In a new ${{ matrix.nofonts }} container without fonts, the program prints the line that installs them
         env:
           IMAGE: ${{ matrix.nofonts }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
-          # gem install chooses this machine's gem from the folder, as RubyGems does from RubyGems.org
-          docker run --rm -v "$GITHUB_WORKSPACE/pkg:/pkg:ro" "$IMAGE" sh -c '
-            cd /pkg && gem install --local --no-document marqius-wkhtmltopdf && cd /tmp &&
+          # this machine's gem by its file: `gem install --local NAME` in a folder of every platform's
+          # gems takes any one of them (RubyGems.org and Bundler choose by platform)
+          docker run --rm -e PLATFORM -v "$GITHUB_WORKSPACE/pkg:/pkg:ro" "$IMAGE" sh -c '
+            gem install --local --no-document /pkg/marqius-wkhtmltopdf-*-"$PLATFORM".gem && cd /tmp &&
             echo "<h1>Invoice 42</h1>" >a.html && wkhtmltopdf a.html a.pdf' >nofonts.log 2>&1 || true
           cat nofonts.log
           grep -E 'apk add|apt-get install|apt install' nofonts.log || { echo "::error::no line that installs fonts"; exit 1; }
