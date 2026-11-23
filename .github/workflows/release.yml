@@ -8,7 +8,8 @@
 #                  and Windows, where wicked_pdf and PDFKit make PDFs with them, and wicked_pdf's and
 #                  PDFKit's own test suites run with them on Linux. Only then are they published,
 #                  with attestations, the version committed and tagged, and the README's lines run
-#                  again from RubyGems.
+#                  again from RubyGems. An hour with no new release ends after that first check:
+#                  there is nothing new to test.
 #   by hand        Actions > Release > Run workflow: the same, now; it also publishes the gem's own
 #                  release if RubyGems lacks it, which is how the first release goes out
 #   on a change    to main, or in a pull request: the gem as it stands, on the same machines; a version
@@ -85,6 +86,8 @@ jobs:
     # the README's lines as printed, in new projects: Bundler must choose the platform's gem, and
     # wicked_pdf and PDFKit make PDFs with it, found by themselves and named by executable_path
     needs: follow
+    # every hour, only when there is a release to publish: the other hours have nothing new to test
+    if: github.event_name != 'schedule' || needs.follow.outputs.publish == 'true'
     name: examples (${{ matrix.name }})
     strategy:
       fail-fast: false
@@ -173,6 +176,8 @@ jobs:
     # wicked_pdf's and PDFKit's own test suites, as github.com/marqiushq/wkhtmltopdf-library-tests
     # runs them, with the gem as their wkhtmltopdf
     needs: follow
+    # every hour, only when there is a release to publish: the other hours have nothing new to test
+    if: github.event_name != 'schedule' || needs.follow.outputs.publish == 'true'
     name: suites (${{ matrix.library }}, ${{ matrix.runner }})
     strategy:
       fail-fast: false
