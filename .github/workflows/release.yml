@@ -409,6 +409,8 @@ jobs:
 
   live:
     needs: [follow, publish]
+    # explicit: a Mac job left out by hand (macos off) must not skip the check of what was published
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     name: live (${{ matrix.runner }})
     strategy:
       fail-fast: false
