@@ -24,6 +24,10 @@ on:
     - cron: "53 * * * *"
   workflow_dispatch:
     inputs:
+      macos:
+        description: "Test on GitHub's macOS too (off only while GitHub has no Mac, and the macOS checks were run on a Mac elsewhere)"
+        type: boolean
+        default: true
       dry_run:
         description: "Rehearsal: build and test the latest marqius-wkhtmltopdf release as if it were new, even if RubyGems has it, without the macOS lane; publish nothing"
         type: boolean
@@ -220,7 +224,7 @@ jobs:
     # the examples' macOS (Apple silicon) lane, as its own job: a rehearsal publishes nothing and leaves
     # it out (GitHub often has no Mac to give); publishing needs it, as before
     needs: follow
-    if: (github.event_name != 'schedule' || needs.follow.outputs.publish == 'true') && !inputs.dry_run
+    if: (github.event_name != 'schedule' || needs.follow.outputs.publish == 'true') && !inputs.dry_run && (github.event_name != 'workflow_dispatch' || inputs.macos)
     name: examples (macOS, Apple silicon)
     runs-on: macos-15
     defaults:
@@ -323,9 +327,12 @@ jobs:
 
   publish:
     needs: [follow, examples, examples-macos, suites]
+    # a run by hand with macos off publishes without GitHub's Mac (the macOS checks ran on a Mac elsewhere)
     if: >-
-      needs.follow.outputs.publish == 'true' && github.ref == 'refs/heads/main' &&
-      vars.PUBLISHING == 'on' && !github.event.repository.private && !inputs.dry_run
+      ${{ !cancelled() && needs.follow.outputs.publish == 'true' && github.ref == 'refs/heads/main' &&
+      needs.examples.result == 'success' && needs.suites.result == 'success' &&
+      (needs.examples-macos.result == 'success' || (github.event_name == 'workflow_dispatch' && !inputs.macos)) &&
+      vars.PUBLISHING == 'on' && !github.event.repository.private && !inputs.dry_run }}
     runs-on: ubuntu-24.04
     environment: rubygems
     permissions:
@@ -382,14 +389,17 @@ jobs:
         env:
           VERSION: ${{ needs.follow.outputs.version }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MACOS: ${{ github.event_name != 'workflow_dispatch' || inputs.macos }}
         run: |
+          mac="macOS (Apple silicon)"
+          [ "$MACOS" = false ] && mac="macOS (Apple silicon, on a Mac outside GitHub, which had none free)"
           sed -i "s/^  VERSION = \".*\"$/  VERSION = \"$VERSION\"/" lib/marqius_wkhtmltopdf.rb
           grep -qx "  VERSION = \"$VERSION\"" lib/marqius_wkhtmltopdf.rb
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet -- lib/marqius_wkhtmltopdf.rb; then
             git add lib/marqius_wkhtmltopdf.rb
-            git commit -q -m "marqius-wkhtmltopdf $VERSION" -m "Installed with Bundler and run through wicked_pdf and PDFKit on Linux (x86-64, ARM64), macOS (Apple silicon) and Windows, their own test suites passed on Linux, then published: $RUN_URL"
+            git commit -q -m "marqius-wkhtmltopdf $VERSION" -m "Installed with Bundler and run through wicked_pdf and PDFKit on Linux (x86-64, ARM64), $mac and Windows, their own test suites passed on Linux, then published: $RUN_URL"
           fi
           if [ -z "$(git ls-remote --tags origin "refs/tags/$VERSION")" ]; then
             git tag -a "$VERSION" -m "marqius-wkhtmltopdf $VERSION" -m "Tested and published: $RUN_URL"
@@ -403,11 +413,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { runner: ubuntu-24.04, platform: x86_64-linux }
-          - { runner: ubuntu-24.04-arm, platform: aarch64-linux }
-          - { runner: macos-15, platform: arm64-darwin }
-          - { runner: windows-2025, platform: x64-mingw-ucrt, zero: "no" }
+        # a run by hand with macos off leaves GitHub's Mac out (the macOS checks ran on a Mac elsewhere)
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.macos == false && '[{"runner":"ubuntu-24.04","platform":"x86_64-linux"},{"runner":"ubuntu-24.04-arm","platform":"aarch64-linux"},{"runner":"windows-2025","platform":"x64-mingw-ucrt","zero":"no"}]' || '[{"runner":"ubuntu-24.04","platform":"x86_64-linux"},{"runner":"ubuntu-24.04-arm","platform":"aarch64-linux"},{"runner":"macos-15","platform":"arm64-darwin"},{"runner":"windows-2025","platform":"x64-mingw-ucrt","zero":"no"}]') }}
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
