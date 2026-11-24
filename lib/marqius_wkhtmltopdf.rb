@@ -12,7 +12,7 @@
 # carries the program itself. marqius-wkhtmltopdf is commercial software from Simple AI LLC, with a
 # 30-day free trial: https://marqius.com/licence/marqius-wkhtmltopdf
 module MarqiusWkhtmltopdf
-  VERSION = "0.12.14"
+  VERSION = "0.12.17"
 
   # The platforms with a gem that carries the program, in RubyGems' names. The Linux programs are
   # static, so each Linux gem serves glibc and musl (Alpine) alike.
