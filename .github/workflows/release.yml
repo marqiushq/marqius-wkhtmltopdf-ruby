@@ -124,6 +124,12 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # GitHub's Ubuntu machines carry Microsoft's apt repository as well as Ubuntu's. On 27 Nov 2026
+      # it answered 403, and `apt-get update` failed the run. A customer's Ubuntu has only Ubuntu's
+      # sources (in sources.list on 22.04, sources.list.d/ubuntu.sources from 24.04), so only those stay.
+      - name: Only Ubuntu's own apt sources, as on a customer's machine
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: sudo find /etc/apt/sources.list.d -mindepth 1 -maxdepth 1 ! -type d ! -name ubuntu.sources -print -delete
       # GitHub's Intel Ubuntu machines download from a slow mirror (the README's 75 MB of fonts took
       # 7 to 13 minutes there): the packages earlier runs downloaded go where apt looks first. apt
       # still checks each one against its index, and downloads any that changed.
@@ -272,6 +278,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # GitHub's Ubuntu machines carry Microsoft's apt repository as well as Ubuntu's. On 27 Nov 2026
+      # it answered 403, and `apt-get update` failed the run. A customer's Ubuntu has only Ubuntu's
+      # sources (in sources.list on 22.04, sources.list.d/ubuntu.sources from 24.04), so only those stay.
+      - name: Only Ubuntu's own apt sources, as on a customer's machine
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: sudo find /etc/apt/sources.list.d -mindepth 1 -maxdepth 1 ! -type d ! -name ubuntu.sources -print -delete
       # GitHub's Intel Ubuntu machines download from a slow mirror (the README's 75 MB of fonts took
       # 7 to 13 minutes there): the packages earlier runs downloaded go where apt looks first. apt
       # still checks each one against its index, and downloads any that changed.
